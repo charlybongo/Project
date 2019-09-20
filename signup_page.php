@@ -1,4 +1,105 @@
+<?php
+// Include config file
+require_once "config.php";
 
+// Define variables and initialize with empty values
+$username = $password = $confirm_password = "";
+$username_err = $password_err = $confirm_password_err = "";
+
+// Processing form data when form is submitted
+if($_SERVER["REQUEST_METHOD"] == "POST"){
+
+    // Validate username
+    if(empty(trim($_POST["username"]))){
+        $username_err = "Please enter a username.";
+
+    } else{
+        // Prepare a select statement
+        $sql = "SELECT id FROM users WHERE username = ?";
+
+
+
+
+
+        if($stmt = mysqli_prepare($link, $sql)){
+            // Bind variables to the prepared statement as parameters
+            mysqli_stmt_bind_param($stmt, "s", $param_username);
+
+            // Set parameters
+            $param_username = trim($_POST["username"]);
+
+            // Attempt to execute the prepared statement
+            if(mysqli_stmt_execute($stmt)){
+                /* store result */
+                mysqli_stmt_store_result($stmt);
+
+                if(mysqli_stmt_num_rows($stmt) == 1){
+                    $username_err = "This username is already taken.";
+                } else{
+                    $username = trim($_POST["username"]);
+                }
+            } else{
+                echo "Oops! Something went wrong. Please try again later.";
+            }
+        }
+
+        // Close statement
+        mysqli_stmt_close($stmt);
+    }
+
+    // Validate password
+    if(empty(trim($_POST["password"]))){
+        $password_err = "Please enter a password.";
+    } elseif(strlen(trim($_POST["password"])) < 6){
+        $password_err = "Password must have atleast 6 characters.";
+    } else{
+        $password = trim($_POST["password"]);
+    }
+
+    // Validate confirm password
+    if(empty(trim($_POST["confirm_password"]))){
+        $confirm_password_err = "Please confirm password.";
+    } else{
+        $confirm_password = trim($_POST["confirm_password"]);
+        if(empty($password_err) && ($password != $confirm_password)){
+            $confirm_password_err = "Password did not match.";
+        }
+    }
+
+    // Check input errors before inserting in database
+    if(empty($username_err) && empty($password_err) && empty($confirm_password_err) ){
+
+        // Prepare an insert statement
+        $sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+
+        if($stmt = mysqli_prepare($link, $sql)){
+            // Bind variables to the prepared statement as parameters
+            mysqli_stmt_bind_param($stmt, "ss", $param_username, $param_password);
+
+            // Set parameters
+            $param_username = $username;
+            $param_password = password_hash($password, PASSWORD_DEFAULT); // Creates a password hash
+
+            // Attempt to execute the prepared statement
+            if(mysqli_stmt_execute($stmt)){
+                // Redirect to login page
+                header("location: index.php");
+            } else{
+                echo "Something went wrong. Please try again later.";
+            }
+
+        }
+
+        // Close statement
+        mysqli_stmt_close($stmt);
+      }
+
+
+
+    // Close connection
+    mysqli_close($link);
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,56 +114,34 @@
 			<!-- <i id="team">TEAM TREASURE</i> -->
 		</div>
 		<div id="signup-form">
-			<form action="" method="post">
+
 			<h2>Sign Up</h2>
-			<label>Full Name</label><br>
-			<input type="text" class="form-control name" name="fullname" required><br>
-			<label id="em">Email</label><br>
-			<input type="Email" class="form-control name" name="email" required><br>
-			<label>Username</label><br>
-			<input type="name" name="username" required><br>
+
+			<label>Username or Email</label><br>
+			  <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
+			<div class="form-group <?php echo (!empty($username_err)) ? 'has-error' : ''; ?>">
+                    <input type="text" name="username"   class="form-control" value="<?php echo $username; ?>">
+                 <span class="help-block"><?php echo $username_err; ?></span>
+             </div>
 			<label id="">Password?</label><br>
-			<input type="password" name="password" id="s.password" required><br>
+			<div class="form-group <?php echo (!empty($password_err)) ? 'has-error' : ''; ?>">
+
+	      <input type="password" name="password"   class="form-control"  value="<?php echo $password; ?>">
+	      <span class="help-block"><?php echo $password_err; ?></span>
+	  </div>
 			<label>Repeat Password</label><br>
-			<input type="password" name="repassword" id="repassword" required><br>
-			<!-- <input type="checkbox" name="checkbox" id="check"><i id="check-writeup">I agree to the terms of User</i> <br>	 -->
-			<input type="submit" name="signup" id="signup" value="Sign Up" onClick="valid()">
+			<div class="form-group <?php echo (!empty($confirm_password_err)) ? 'has-error' : ''; ?>">
+
+      <input type="password" name="confirm_password"   class="form-control" value="<?php echo $confirm_password; ?>">
+      <span class="help-block"><?php echo $confirm_password_err; ?></span>
+  </div>
+			<input type="submit" name="signup" id="signup" value="Submit" >
 			<a href="index.php" id="signin">Sign in</a>
 
 		</form>
 		</div>
-		
+
 	</div>
 
 </body>
 </html>
-<?php
-include_once('dbcon.php');
- 
-if(isset($_POST['signup'])){
-$fname= $_POST['fullname'];
-$mail= $_POST['email'];
-$usern= $_POST['username'];
-$password= $_POST['password'];
-		
-$sql="INSERT INTO registration (fullname, email, password, username) VALUES ('$fname', '$mail', '$password', '$usern') ";
-		$query=mysqli_query($connect2db,$sql) or die(mysqli_error($connect2db));
-echo '<script language="javascript">'."alert('You have successfully registered a staff!')"."alert('Click here to view your signin page')"."</script>";
-
-}
-?>
-<script type="text/javascript">
-function valid(){
-const password =document.getElementById("s.password");
-const repassword = document.getElementById("repassword");
-
-if(password.value != repassword.value)
-{
-alert("Password and Confirm Password Field do not match  !!");
-document.getElementById(repassword).focus();
-return false;
-}
-return true;
-}
-
-</script>
